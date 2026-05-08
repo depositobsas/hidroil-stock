@@ -23,6 +23,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
 .update-info{font-size:11px;color:#7d8590;text-align:right;}
 .update-info b{color:#c9d1d9;}
 .btn-update{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;transition:border-color .15s,background .15s;}
+.source-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:.3px;}
+.source-badge.online{background:#1a2e1a;color:#4caf50;border:1px solid #2d4a2d;}
+.source-badge.offline{background:#2a2a1a;color:#f0b429;border:1px solid #4a4a2d;}
+.source-badge.loading{background:#1e2233;color:#5b8dee;border:1px solid #2d3a5a;}
+.source-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
 .btn-save{background:#1a2a1a;border:1px solid #2d4a2d;color:#4caf50;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;display:none;align-items:center;gap:6px;font-family:inherit;transition:border-color .15s,background .15s;}
 .btn-save:hover{border-color:#4caf50;background:#1f351f;}
 .btn-save.visible{display:flex;}
@@ -133,11 +138,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
     <p>Busque por código de producto o descripción</p>
   </div>
   <div class="header-right">
-    <div class="update-info">
+    <div class="update-info" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+      <span class="source-badge loading" id="sourceBadge"><span class="source-dot"></span><span id="sourceText">Conectando...</span></span>
       Datos al <b id="dataDate">27/04/2026</b> &nbsp;·&nbsp; <span id="dataCount">5757</span> productos
     </div>
+    <button class="btn-update" style="background:#1e2233;border-color:#2d3a5a;color:#5b8dee;" onclick="reloadSheets()">
+      ☁️ Actualizar desde servidor
+    </button>
     <button class="btn-update" onclick="document.getElementById('fileInput').click()">
-      📂 Actualizar con nuevo Excel
+      📂 Cargar Excel local
     </button>
     <button class="btn-save" id="btnSave" onclick="saveHTML()">
       💾 Guardar HTML actualizado
@@ -412,6 +421,53 @@ function doSearch(q){
   }
   main.innerHTML=`<div class="hint">${r.length} resultado${r.length>1?'s':''} encontrado${r.length>1?'s':''}</div>`+r.map(renderCard).join('');
 }
+
+
+// ── CARGA DESDE GITHUB PAGES ────────────────────────────────────────────────
+const XLSX_URL = 'https://depositobsas.github.io/hidroil-stock/reporte.xlsx';
+
+async function loadFromSheets(silent=false){
+  const badge   = document.getElementById('sourceBadge');
+  const srcText = document.getElementById('sourceText');
+  badge.className='source-badge loading'; srcText.textContent='Cargando...';
+  try{
+    const resp = await Promise.race([
+      fetch(XLSX_URL+'?t='+Date.now(), {cache:'no-store'}),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),12000))
+    ]);
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const arrayBuffer = await resp.arrayBuffer();
+    const wb = XLSX.read(arrayBuffer, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    const newData = buildIndex(rows);
+    if(newData.length < 10) throw new Error('Pocos productos: '+newData.length);
+    DATA = newData;
+    const now = new Date();
+    document.getElementById('dataDate').textContent = now.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+    document.getElementById('dataCount').textContent = DATA.length.toLocaleString('es-AR');
+    badge.className='source-badge online'; srcText.textContent='Datos en vivo';
+    document.getElementById('btnSave').classList.add('visible');
+    const q=document.getElementById('searchInput').value;
+    if(q.trim()) doSearch(q); else showEmpty();
+    if(!silent) showToast(DATA.length.toLocaleString('es-AR')+' productos actualizados','ok');
+    console.log('GitHub OK:',DATA.length,'productos');
+  }catch(e){
+    badge.className='source-badge offline'; srcText.textContent='Datos embebidos';
+    const q=document.getElementById('searchInput').value;
+    if(q.trim()) doSearch(q); else showEmpty();
+    if(!silent) showToast('Usando datos embebidos (sin conexión)','err');
+    console.warn('GitHub error:',e.message);
+  }
+}
+
+async function reloadSheets(){
+  showToast('Descargando reporte actualizado...','loading');
+  await loadFromSheets(false);
+}
+
+// Intentar cargar desde GitHub al iniciar (silencioso si falla)
+loadFromSheets(true);romSheets(true);
 
 // ── GUARDAR HTML ACTUALIZADO ─────────────────────────────────────────────────
 function saveHTML(){
