@@ -28,9 +28,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
 .source-badge.offline{background:#2a2a1a;color:#f0b429;border:1px solid #4a4a2d;}
 .source-badge.loading{background:#1e2233;color:#5b8dee;border:1px solid #2d3a5a;}
 .source-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-.btn-save{background:#1a2a1a;border:1px solid #2d4a2d;color:#4caf50;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;display:none;align-items:center;gap:6px;font-family:inherit;transition:border-color .15s,background .15s;}
-.btn-save:hover{border-color:#4caf50;background:#1f351f;}
-.btn-save.visible{display:flex;}
 .btn-update:hover{border-color:#f0b429;background:#2d333b;}
 
 /* SEARCH */
@@ -54,12 +51,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
 .hint{font-size:12px;color:#a0aab4;margin-bottom:16px;font-weight:500;}
 
 /* DRAG OVERLAY */
-.drop-overlay{display:none;position:fixed;inset:0;background:rgba(13,17,23,.92);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
-.drop-overlay.active{display:flex;}
-.drop-box{border:2px dashed #f0b429;border-radius:16px;padding:48px 64px;text-align:center;}
-.drop-box .icon{font-size:48px;margin-bottom:12px;}
-.drop-box p{font-size:18px;font-weight:600;color:#e6edf3;margin-bottom:6px;}
-.drop-box small{font-size:13px;color:#7d8590;}
 
 /* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px 18px;font-size:13px;color:#c9d1d9;z-index:600;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);transform:translateY(80px);opacity:0;transition:transform .3s,opacity .3s;}
@@ -114,15 +105,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
 </head>
 <body>
 
-<!-- DRAG OVERLAY -->
-<div class="drop-overlay" id="dropOverlay">
-  <div class="drop-box">
-    <div class="icon">📂</div>
-    <p>Soltá el archivo Excel aquí</p>
-    <small>Se actualizarán los datos automáticamente</small>
-  </div>
-</div>
-
 <!-- TOAST -->
 <div class="toast" id="toast">
   <span class="ti" id="toastIcon">↻</span>
@@ -145,13 +127,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
     <button class="btn-update" style="background:#1e2233;border-color:#2d3a5a;color:#5b8dee;" onclick="reloadSheets()">
       ☁️ Actualizar desde servidor
     </button>
-    <button class="btn-update" onclick="document.getElementById('fileInput').click()">
-      📂 Cargar Excel local
-    </button>
-    <button class="btn-save" id="btnSave" onclick="saveHTML()">
-      💾 Guardar HTML actualizado
-    </button>
-    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this.files[0])">
   </div>
 </div>
 
@@ -218,248 +193,8 @@ function showToast(msg, type='loading'){
   if(type!=='loading') toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
 }
 
-// ── DRAG & DROP ────────────────────────────────────────
-const overlay = document.getElementById('dropOverlay');
-let dragCounter = 0;
-
-document.addEventListener('dragenter', e=>{
-  if([...e.dataTransfer.items].some(i=>i.kind==='file')){
-    dragCounter++;
-    overlay.classList.add('active');
-  }
-});
-document.addEventListener('dragleave', ()=>{ if(--dragCounter<=0){dragCounter=0;overlay.classList.remove('active');} });
-document.addEventListener('dragover', e=>e.preventDefault());
-document.addEventListener('drop', e=>{
-  e.preventDefault(); dragCounter=0; overlay.classList.remove('active');
-  const file = e.dataTransfer.files[0];
-  if(file) handleFile(file);
-});
-
 // ── EXCEL PARSER ──────────────────────────────────────
-function handleFile(file){
-  if(!file) return;
-  if(!/\.xlsx?$/i.test(file.name)){ showToast('Solo se aceptan archivos .xlsx o .xls','err'); return; }
-  showToast('Procesando '+file.name+'...');
-  const reader = new FileReader();
-  reader.onload = e=>{
-    try{
-      const wb = XLSX.read(e.target.result, {type:'array'});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      const newData = buildIndex(rows);
-      DATA = newData;
-      // Update UI
-      const today = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-      document.getElementById('dataDate').textContent = today;
-      document.getElementById('dataCount').textContent = DATA.length.toLocaleString('es-AR');
-      // Mostrar botón guardar
-      document.getElementById('btnSave').classList.add('visible');
-      // Re-run current search
-      const q = document.getElementById('searchInput').value;
-      if(q.trim()) doSearch(q); else showEmpty();
-      showToast(DATA.length.toLocaleString('es-AR')+' productos cargados — guardá el HTML actualizado','ok');
-    }catch(err){
-      showToast('Error al leer el archivo: '+err.message,'err');
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
 
-function buildIndex(rows){
-  const products = {};
-  for(let i=1;i<rows.length;i++){
-    const row = rows[i];
-    const dep = String(row[3]||'').trim().toUpperCase();
-    const info = DEPOSITO_MAP[dep];
-    if(!info) continue;
-    const codigo   = String(row[1]||'').trim();
-    const producto = String(row[2]||'').trim();
-    const stock    = parseFloat(String(row[4]||'0').replace(',','.')) || 0;
-    const familia  = String(row[8]||'').trim();
-    const subfam   = String(row[9]||'').trim();
-    if(!codigo) continue;
-    const key = codigo.toUpperCase();
-    if(!products[key])
-      products[key]={codigo,producto,familia,subfamilia:subfam,
-        filiales:{BA:0,NQN:0,CR:0,SJ:0,ANELO:0},depositos:{}};
-    products[key].filiales[info.filial] = Math.round((products[key].filiales[info.filial]+stock)*10000)/10000;
-    if(!products[key].depositos[info.label])
-      products[key].depositos[info.label]={stock:0,tipo:info.tipo,filial:info.filial};
-    products[key].depositos[info.label].stock = Math.round((products[key].depositos[info.label].stock+stock)*10000)/10000;
-  }
-  return Object.values(products);
-}
-
-// ── RENDER ────────────────────────────────────────────
-function fmt(n){
-  if(n===0) return '0';
-  const r=Math.round(n*100)/100;
-  return Number.isInteger(r)?r.toLocaleString('es-AR'):r.toFixed(2).replace(/\.00$/,'');
-}
-
-function showEmpty(){
-  document.getElementById('main').innerHTML=`<div class="no-result">
-    <img class="meme" src="${MEME}" alt="">
-    <p>Ingrese un código o descripción para consultar el stock</p>
-    <small id="countLabel">${DATA.length.toLocaleString('es-AR')} productos disponibles</small>
-  </div>`;
-}
-
-function renderCard(p){
-  const fil=p.filiales, deps=p.depositos;
-  const total=FILIALES.reduce((s,f)=>s+(fil[f]||0),0);
-  const cols=FILIALES.map(f=>{
-    const info=FILIAL_INFO[f], v=fil[f]||0, c=v>0?info.color:'#30363d';
-    const myDeps=Object.entries(deps)
-      .filter(([,d])=>d.filial===f)
-      .sort((a,b)=>(TIPO_ORDER[a[1].tipo]??9)-(TIPO_ORDER[b[1].tipo]??9)||a[0].localeCompare(b[0]));
-    const depHtml=myDeps.length?'<div class="dep-list">'+myDeps.map(([lbl,d])=>{
-      const dv=d.stock;
-      return `<div class="dep-item">
-        <span class="dep-tipo-badge dep-tipo-${d.tipo}">${TIPO_LABEL[d.tipo]}</span>
-        <span class="dep-name">${lbl}</span>
-        <span class="dep-qty${dv===0?' zero':''}" style="${dv>0?'color:'+info.color:''}">${fmt(dv)}</span>
-      </div>`;
-    }).join('')+'</div>':'';
-    return `<div class="filial-col">
-      <div class="filial-header"><span class="filial-dot" style="background:${info.color}"></span><span class="filial-name">${info.nombre}</span></div>
-      <div class="filial-total" style="color:${c}">${fmt(v)}</div>
-      <div class="filial-unit">unidades</div>${depHtml}
-    </div>`;
-  }).join('');
-  const distItems=FILIALES.filter(f=>(fil[f]||0)>0).map(f=>{
-    const info=FILIAL_INFO[f];
-    return `<div class="dist-item"><span class="dist-dot" style="background:${info.color}"></span><span class="dist-fname">${info.nombre}</span><span class="dist-val">${fmt(fil[f])}</span></div>`;
-  }).join('');
-  return `<div class="product-card">
-    <div class="prod-header">
-      <div class="prod-code">${p.codigo}</div>
-      <div class="prod-name">${p.producto}</div>
-      <div class="prod-tags">
-        ${p.familia?`<span class="tag primary">${p.familia}</span>`:''}
-        ${p.subfamilia?`<span class="tag">${p.subfamilia}</span>`:''}
-      </div>
-    </div>
-    <div class="filiales-wrap">${cols}</div>
-    <div class="total-bar">
-      <div class="dist-list">${distItems}</div>
-      <div class="total-right">
-        <div class="total-label">Total Red</div>
-        <div class="total-num">${fmt(total)}</div>
-        <div class="total-sub">unidades en stock</div>
-      </div>
-    </div>
-  </div>`;
-}
-
-// ── SEARCH ────────────────────────────────────────────
-const input = document.getElementById('searchInput');
-const sug   = document.getElementById('suggestions');
-const main  = document.getElementById('main');
-
-sug.addEventListener('mousedown',e=>{e.preventDefault();mouseDownOnSug=true;});
-sug.addEventListener('mouseup',()=>{mouseDownOnSug=false;});
-
-function hideSug(){sug.style.display='none';}
-
-function showSug(q){
-  const qu=q.trim().toUpperCase();
-  if(qu.length<1){hideSug();return;}
-  // Buscar por código Y descripción, sin límite fijo — máx 200 para no trabar DOM
-  const m=DATA.filter(p=>
-    p.codigo.toUpperCase().includes(qu)||
-    p.producto.toUpperCase().includes(qu)
-  ).slice(0,200);
-  if(!m.length){
-    sug.innerHTML='<div class="sug-empty">Sin coincidencias para "'+q+'"</div>';
-    sug.style.display='block';
-    return;
-  }
-  const countLabel = m.length>=200 ? '200+ resultados' : m.length+' resultado'+(m.length!==1?'s':'');
-  sug.innerHTML=`<div class="sug-header">${countLabel} para "${q.toLowerCase()}"</div>`+
-  m.map(p=>`<div class="sug-item" data-codigo="${p.codigo}">
-    <div class="sug-code">${p.codigo}</div>
-    <div class="sug-name">${p.producto}</div>
-  </div>`).join('');
-  sug.style.display='block';
-  sug.querySelectorAll('.sug-item').forEach(el=>{
-    el.addEventListener('click',()=>{
-      input.value=el.dataset.codigo;
-      hideSug();
-      doSearch(el.dataset.codigo);
-      input.focus();
-    });
-  });
-}
-
-// Solo mostrar sugerencias mientras se escribe — NO buscar automáticamente
-input.addEventListener('input',e=>{
-  showSug(e.target.value);
-});
-
-// Enter solo busca si hay texto exacto que coincide con un código, si no, no hace nada
-input.addEventListener('keydown',e=>{
-  if(e.key==='Enter'){
-    const q=input.value.trim().toUpperCase();
-    const exact=DATA.find(p=>p.codigo.toUpperCase()===q);
-    if(exact){ hideSug(); doSearch(exact.codigo); }
-    // Si no es exacto, no busca — el usuario debe seleccionar de la lista
-  }
-  if(e.key==='Escape'){ hideSug(); }
-});
-input.addEventListener('blur',()=>{if(!mouseDownOnSug) setTimeout(hideSug,200);});
-document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap')) hideSug();});
-
-function doSearch(q){
-  const qu=q.trim().toUpperCase();
-  if(!qu){showEmpty();return;}
-  const r=DATA.filter(p=>p.codigo.toUpperCase().includes(qu)||p.producto.toUpperCase().includes(qu)).slice(0,15);
-  if(!r.length){
-    main.innerHTML=`<div class="no-result"><img class="meme" src="${MEME}" alt=""><p>Sin resultados para "<b>${q}</b>"</p><small>Verifique el código o pruebe con la descripción</small></div>`;
-    return;
-  }
-  main.innerHTML=`<div class="hint">${r.length} resultado${r.length>1?'s':''} encontrado${r.length>1?'s':''}</div>`+r.map(renderCard).join('');
-}
-
-
-// ── CARGA DESDE GITHUB PAGES ────────────────────────────────────────────────
-const XLSX_URL = 'https://depositobsas.github.io/hidroil-stock/reporte.xlsx';
-
-async function loadFromSheets(silent=false){
-  const badge   = document.getElementById('sourceBadge');
-  const srcText = document.getElementById('sourceText');
-  badge.className='source-badge loading'; srcText.textContent='Cargando...';
-  try{
-    const resp = await Promise.race([
-      fetch(XLSX_URL+'?t='+Date.now(), {cache:'no-store'}),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),12000))
-    ]);
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const arrayBuffer = await resp.arrayBuffer();
-    const wb = XLSX.read(arrayBuffer, {type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-    const newData = buildIndex(rows);
-    if(newData.length < 10) throw new Error('Pocos productos: '+newData.length);
-    DATA = newData;
-    const now = new Date();
-    document.getElementById('dataDate').textContent = now.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-    document.getElementById('dataCount').textContent = DATA.length.toLocaleString('es-AR');
-    badge.className='source-badge online'; srcText.textContent='Datos en vivo';
-    document.getElementById('btnSave').classList.add('visible');
-    const q=document.getElementById('searchInput').value;
-    if(q.trim()) doSearch(q); else showEmpty();
-    if(!silent) showToast(DATA.length.toLocaleString('es-AR')+' productos actualizados','ok');
-    console.log('GitHub OK:',DATA.length,'productos');
-  }catch(e){
-    badge.className='source-badge offline'; srcText.textContent='Datos embebidos';
-    const q=document.getElementById('searchInput').value;
-    if(q.trim()) doSearch(q); else showEmpty();
-    if(!silent) showToast('Usando datos embebidos (sin conexión)','err');
-    console.warn('GitHub error:',e.message);
-  }
-}
 
 async function reloadSheets(){
   showToast('Descargando reporte actualizado...','loading');
@@ -469,36 +204,6 @@ async function reloadSheets(){
 // Intentar cargar desde GitHub al iniciar (silencioso si falla)
 loadFromSheets(true);romSheets(true);
 
-// ── GUARDAR HTML ACTUALIZADO ─────────────────────────────────────────────────
-function saveHTML(){
-  showToast('Generando archivo...', 'loading');
-
-  // Obtener el HTML actual completo
-  const fullHTML = document.documentElement.outerHTML;
-
-  // Reemplazar el bloque DATA con los datos actuales
-  const dataStr = JSON.stringify(DATA);
-  const updated = fullHTML.replace(
-    /const DATA = \[.*?\];/s,
-    'const DATA = ' + dataStr + ';'
-  );
-
-  // Generar nombre con fecha
-  const now = new Date();
-  const dd = String(now.getDate()).padStart(2,'0');
-  const mm = String(now.getMonth()+1).padStart(2,'0');
-  const yyyy = now.getFullYear();
-  const filename = `hidroil_stock_${dd}-${mm}-${yyyy}.html`;
-
-  // Descargar
-  const blob = new Blob([updated], {type:'text/html;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-
-  showToast('Guardado como ' + filename, 'ok');
-}
 </script>
 </body>
 </html>
