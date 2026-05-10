@@ -1,12 +1,13 @@
-const CACHE = 'hidroil-stock-v1';
+const CACHE = 'hidroil-stock-v3';
 const ASSETS = [
   '/hidroil-stock/',
   '/hidroil-stock/index.html',
   '/hidroil-stock/reporte.xlsx',
+  '/hidroil-stock/pc.xlsx',
+  '/hidroil-stock/oc.xlsx',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
 
-// Instalar — cachear archivos clave
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(ASSETS)).catch(err => console.warn('Cache parcial:', err))
@@ -14,20 +15,22 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activar — limpiar caches viejos
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE).map(k => {
+        console.log('Eliminando cache viejo:', k);
+        return caches.delete(k);
+      }))
     )
   );
   self.clients.claim();
 });
 
-// Fetch — red primero, cache como fallback
 self.addEventListener('fetch', e => {
-  // Para el reporte.xlsx siempre intentar red primero (datos frescos)
-  if (e.request.url.includes('reporte.xlsx')) {
+  if (e.request.url.includes('reporte.xlsx') || 
+      e.request.url.includes('pc.xlsx') || 
+      e.request.url.includes('oc.xlsx')) {
     e.respondWith(
       fetch(e.request).then(resp => {
         const clone = resp.clone();
@@ -37,7 +40,6 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
-  // Para el resto: cache first, red como fallback
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
