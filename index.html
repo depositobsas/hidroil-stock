@@ -2,7 +2,14 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hidroil Stock">
+  <meta name="theme-color" content="#161b22">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hidroil — Consulta de Stock por Filial</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -122,6 +129,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
   .prod-name{font-size:13px;}
   .filial-col{min-width:120px;}
   .filial-total{font-size:28px;}
+}
+
+/* PWA standalone mode */
+@media(display-mode: standalone){
+  .header{padding-top:env(safe-area-inset-top, 14px);}
+  body{padding-bottom:env(safe-area-inset-bottom, 0);}
 }
 </style>
 </head>
@@ -407,6 +420,16 @@ function doSearch(q){
 
 // Cargar desde GitHub al iniciar
 loadFromSheets(true);
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/hidroil-stock/sw.js')
+      .then(r => console.log('SW registrado:', r.scope))
+      .catch(e => console.warn('SW error:', e));
+  });
+}
 </script>
 </body>
 </html>
