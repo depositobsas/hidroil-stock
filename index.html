@@ -100,9 +100,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
   .search-area{padding:14px 16px;}
   .search-wrap input{font-size:14px;padding:11px 14px 11px 40px;}
   .main{padding:14px 16px;}
-  .filiales-wrap{grid-template-columns:1fr 1fr !important;}
-  .filial-col{border-right:none !important;border-bottom:1px solid #21262d;padding:14px 12px;}
-  .filial-col:last-child{border-bottom:none;}
+  /* Filiales: scroll horizontal manteniendo 5 columnas */
+  .filiales-wrap{display:flex !important;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .filial-col{min-width:140px;flex-shrink:0;border-right:1px solid #21262d;padding:12px 10px;}
+  .filial-col:last-child{border-right:none;}
   .filial-total{font-size:32px;}
   .prod-header{padding:14px 16px;}
   .prod-name{font-size:14px;}
@@ -117,9 +118,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
   .dep-qty{font-size:13px;}
 }
 @media(max-width:480px){
-  .filiales-wrap{grid-template-columns:1fr !important;}
   .header-right{flex-direction:column;align-items:flex-start;}
   .prod-name{font-size:13px;}
+  .filial-col{min-width:120px;}
   .filial-total{font-size:28px;}
 }
 </style>
