@@ -7,7 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hidroil Stock">
-<meta name="theme-color" content="#161b22">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="theme-color" content="#161b22">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Hidroil — Consulta de Stock</title>
@@ -59,7 +62,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
 .no-result p{font-size:15px;color:#c9d1d9;margin-bottom:6px;}
 .no-result small{font-size:12px;color:#7d8590;}
 
-.product-card{background:#161b22;border:1px solid #2d1a1a;border-radius:12px;overflow:hidden;margin-bottom:22px;box-shadow:0 2px 12px rgba(204,0,0,.08);}
+.product-card{background:#161b22;border:1px solid #2d1a1a;border-radius:12px;overflow:visible;margin-bottom:22px;box-shadow:0 2px 12px rgba(204,0,0,.08);}
 .prod-header{background:#0d1117;padding:16px 20px;border-bottom:1px solid #21262d;border-left:5px solid #cc0000;}
 .prod-code{font-size:12px;font-weight:700;color:#ffc533;letter-spacing:.8px;font-family:'Courier New',monospace;margin-bottom:6px;}
 .prod-name{font-size:16px;font-weight:600;color:#e6edf3;line-height:1.35;margin-bottom:10px;}
@@ -97,7 +100,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
 .total-sub{font-size:11px;color:#9ba5b0;margin-top:2px;}
 
 /* PC BAR */
-.pc-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#13110a;border-top:1px solid #21262d;}
+.pc-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#13110a;border-top:1px solid #21262d;overflow:hidden;}
 .pc-bar-left{display:flex;align-items:center;gap:8px;}
 .pc-dot{width:7px;height:7px;border-radius:50%;background:#f0b429;flex-shrink:0;}
 .pc-label{font-size:11px;font-weight:700;color:#f0b429;letter-spacing:.5px;text-transform:uppercase;}
@@ -107,7 +110,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
 .pc-none{font-size:12px;color:#484f58;font-style:italic;}
 
 /* OC BAR */
-.oc-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#0a1310;border-top:1px solid #21262d;cursor:pointer;user-select:none;}
+.oc-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#0a1310;border-top:1px solid #21262d;cursor:pointer;user-select:none;overflow:hidden;}
 .oc-bar:hover{background:#0c1914;}
 .oc-bar-left{display:flex;align-items:center;gap:8px;}
 .oc-dot{width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0;}
@@ -180,6 +183,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf
   .oc-prov{font-size:13px;}
   .oc-qty-val{font-size:20px;}
   .oc-fecha-val{font-size:13px;}
+
+  /* Forzar visibilidad PC y OC en móvil */
+  .pc-bar{display:flex !important;width:100%;min-height:48px;}
+  .oc-bar{display:flex !important;width:100%;min-height:48px;}
+  .oc-detail{display:block;}
+  .pc-total-num{font-size:24px;}
+  .oc-total-num{font-size:20px;}
+  .pc-label,.oc-label{font-size:11px;letter-spacing:.3px;}
 }
 @media(display-mode:standalone){
   .header{padding-top:env(safe-area-inset-top,14px);}
