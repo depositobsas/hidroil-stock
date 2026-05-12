@@ -661,7 +661,22 @@ if('serviceWorker' in navigator){
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const CLIENT_ID = '814546968932-dmpjb2qc9vrbgaqgbpf1il8lf0j1gnej.apps.googleusercontent.com';
-const AUTHORIZED_EMAILS = ["juan.andreola.833@gmail.com", "depositobsas@hidroil.com.ar", "aguero.javierariel@gmail.com", "javieraguero@hidroil.com.ar"];
+let AUTHORIZED_EMAILS = [];
+
+// Cargar lista de emails autorizados desde auth.json
+async function loadAuthList(){
+  try{
+    const resp = await fetch(BASE_URL+'/auth.json?t='+Date.now(),{cache:'no-store'});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    AUTHORIZED_EMAILS = (data.authorized||[]).map(e=>e.toLowerCase());
+    console.log('Auth list cargada:', AUTHORIZED_EMAILS.length, 'usuarios');
+  }catch(e){
+    console.warn('No se pudo cargar auth.json, usando lista embebida:', e.message);
+    // Fallback con lista embebida por si falla la carga
+    AUTHORIZED_EMAILS = ["juan.andreola.833@gmail.com","depositobsas@hidroil.com.ar","aguero.javierariel@gmail.com","javieraguero@hidroil.com.ar"];
+  }
+}
 
 function decodeJWT(token){
   return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
@@ -680,7 +695,7 @@ function handleCredentialResponse(response){
   const payload = decodeJWT(response.credential);
   const email = payload.email;
   const name = payload.name || email;
-  if(AUTHORIZED_EMAILS.map(e=>e.toLowerCase()).includes(email.toLowerCase())){
+  if(AUTHORIZED_EMAILS.includes(email.toLowerCase())){
     grantAccess(email, name);
   } else {
     const err = document.getElementById('loginError');
@@ -695,16 +710,17 @@ function signOut(){
   location.reload();
 }
 
-window.addEventListener('load', ()=>{
+window.addEventListener('load', async ()=>{
   const saved = sessionStorage.getItem('hidroil_user');
   if(saved){
     const user = JSON.parse(saved);
-    if(AUTHORIZED_EMAILS.map(e=>e.toLowerCase()).includes(user.email.toLowerCase())){
+    if(AUTHORIZED_EMAILS.includes(user.email.toLowerCase())){
       grantAccess(user.email, user.name);
       return;
     }
   }
-  // Esperar a que cargue el script de Google
+  // Cargar lista de autorizados y luego inicializar Google
+  await loadAuthList();
   const wait = setInterval(()=>{
     if(typeof google !== 'undefined'){
       clearInterval(wait);
