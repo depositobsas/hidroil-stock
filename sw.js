@@ -1,4 +1,4 @@
-const CACHE = 'hidroil-stock-v3';
+const CACHE = 'hidroil-stock-v4';
 const ASSETS = [
   '/hidroil-stock/',
   '/hidroil-stock/index.html',
@@ -7,6 +7,9 @@ const ASSETS = [
   '/hidroil-stock/oc.xlsx',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
+
+// auth.json NUNCA se cachea — siempre se lee fresco
+const NO_CACHE = ['/hidroil-stock/auth.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -28,9 +31,16 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('reporte.xlsx') || 
-      e.request.url.includes('pc.xlsx') || 
-      e.request.url.includes('oc.xlsx')) {
+  const url = new URL(e.request.url);
+
+  // auth.json — siempre red, nunca cache
+  if(NO_CACHE.some(p => url.pathname.includes(p.replace('/hidroil-stock','')))){
+    e.respondWith(fetch(e.request, {cache:'no-store'}));
+    return;
+  }
+
+  // Excel files — red primero, cache como fallback
+  if(e.request.url.includes('.xlsx')){
     e.respondWith(
       fetch(e.request).then(resp => {
         const clone = resp.clone();
@@ -40,11 +50,13 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
+
+  // Resto — cache first, red como fallback
   e.respondWith(
     caches.match(e.request).then(cached => {
-      if (cached) return cached;
+      if(cached) return cached;
       return fetch(e.request).then(resp => {
-        if (resp && resp.status === 200) {
+        if(resp && resp.status === 200){
           const clone = resp.clone();
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
