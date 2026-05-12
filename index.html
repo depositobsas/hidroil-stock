@@ -371,9 +371,10 @@ function buildPCIndex(rows){
     const estado=String(row[11]||'').trim().toLowerCase();
     const situacion=String(row[17]||row[row.length-1]||'').trim().toLowerCase();
     const docNum=String(row[2]||'').trim();
-    // Ignorar: códigos genéricos (sin guion típico), OCD, inactivos, no pendientes
-    if(!codigo || !codigo.includes('-')) continue;
-    if(docNum.toUpperCase().startsWith('OCD')) continue;
+    // Ignorar genéricos: códigos con espacios o muy largos
+    if(!codigo) continue;
+    if(codigo.includes(' ') || codigo.length > 20) continue;
+    if(docNum.toUpperCase().replace(/\s/g,'').startsWith('OCD')) continue;
     if(estado !== 'activa') continue;
     if(situacion !== 'pendiente') continue;
     const pendiente=parseFloat(row[7]||row[4]||0) || 0;
@@ -395,9 +396,11 @@ function buildOCIndex(rows){
     const docNum=String(row[3]||'').trim();
     const estado=String(row[11]||'').trim().toLowerCase();
     const situacion=String(row[14]||'').trim().toLowerCase();
-    // Ignorar genéricos (sin guion), OCD, inactivos
-    if(!codigo || !codigo.includes('-')) continue;
-    if(docNum.toUpperCase().startsWith('OCD')) continue;
+    // Ignorar genéricos: códigos con espacios o muy largos (>20 chars)
+    if(!codigo) continue;
+    if(codigo.includes(' ') || codigo.length > 20) continue;
+    // Ignorar OCD
+    if(docNum.toUpperCase().replace(/\s/g,'').startsWith('OCD')) continue;
     if(estado !== 'activa') continue;
     if(situacion !== 'pendiente') continue;
     const pendiente=parseFloat(row[9]||0) || 0;
