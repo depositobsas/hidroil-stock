@@ -269,7 +269,7 @@ function buildPCIndex(rows){
   for(let i=1;i<rows.length;i++){
     const r=rows[i];
     const codigo=String(r[0]||'').trim();
-    if(!codigo||codigo.includes(' ')||codigo.length>20)continue;
+    if(!codigo)continue;
     const docNum=String(r[2]||'').trim();
     if(docNum.toUpperCase().replace(/\s/g,'').startsWith('OCD'))continue;
     const estado=String(r[11]||'').trim().toLowerCase();
@@ -303,7 +303,7 @@ function buildOCIndex(rows){
     const r=rows[i];
     if(!r||!r.length)continue;
     const codigo=c.cod>=0?String(r[c.cod]||'').trim():'';
-    if(!codigo||codigo.includes(' ')||codigo.length>20)continue;
+    if(!codigo)continue;
     const docNum=c.doc>=0?String(r[c.doc]||'').trim():'';
     if(docNum.toUpperCase().replace(/\s/g,'').startsWith('OCD'))continue;
     const estado=c.est>=0?String(r[c.est]||'').trim().toLowerCase():'';
