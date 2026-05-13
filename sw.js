@@ -1,19 +1,16 @@
-const CACHE = 'hidroil-stock-v4';
-const ASSETS = [
-  '/hidroil-stock/',
-  '/hidroil-stock/index.html',
-  '/hidroil-stock/reporte.xlsx',
-  '/hidroil-stock/pc.xlsx',
-  '/hidroil-stock/oc.xlsx',
+const CACHE = 'hidroil-stock-v5';
+
+// Estos archivos NUNCA se cachean — siempre se leen del servidor
+const NO_CACHE = ['index.html', 'auth.json'];
+
+// Estos se cachean para uso offline
+const CACHE_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
 
-// auth.json NUNCA se cachea — siempre se lee fresco
-const NO_CACHE = ['/hidroil-stock/auth.json'];
-
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS)).catch(err => console.warn('Cache parcial:', err))
+    caches.open(CACHE).then(cache => cache.addAll(CACHE_ASSETS)).catch(err => console.warn('Cache parcial:', err))
   );
   self.skipWaiting();
 });
@@ -32,17 +29,20 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+  const filename = url.pathname.split('/').pop();
 
-  // auth.json — siempre red, nunca cache
-  if(NO_CACHE.some(p => url.pathname.includes(p.replace('/hidroil-stock','')))){
-    e.respondWith(fetch(e.request, {cache:'no-store'}));
+  // index.html y auth.json — SIEMPRE red, nunca caché
+  if(NO_CACHE.some(f => filename === f || url.pathname.endsWith(f))){
+    e.respondWith(
+      fetch(e.request, {cache: 'no-store'}).catch(() => caches.match(e.request))
+    );
     return;
   }
 
-  // Excel files — red primero, cache como fallback
-  if(e.request.url.includes('.xlsx')){
+  // Excel files — red primero, caché como fallback
+  if(filename.endsWith('.xlsx')){
     e.respondWith(
-      fetch(e.request).then(resp => {
+      fetch(e.request, {cache: 'no-store'}).then(resp => {
         const clone = resp.clone();
         caches.open(CACHE).then(cache => cache.put(e.request, clone));
         return resp;
@@ -51,7 +51,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Resto — cache first, red como fallback
+  // SheetJS y otros assets — caché first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if(cached) return cached;
@@ -61,7 +61,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
         return resp;
-      }).catch(() => caches.match('/hidroil-stock/'));
+      });
     })
   );
 });
