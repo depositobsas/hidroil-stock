@@ -442,15 +442,27 @@ const CLIENT_ID='814546968932-dmpjb2qc9vrbgaqgbpf1il8lf0j1gnej.apps.googleuserco
 let AUTHORIZED_EMAILS=["juan.andreola.833@gmail.com","depositobsas@hidroil.com.ar","aguero.javierariel@gmail.com","javieraguero@hidroil.com.ar","juan.andreola.1987@gmail.com"];
 
 async function loadAuthList(){
-  try{
-    const r=await fetch(BASE_URL+'/auth.json?t='+Date.now(),{cache:'no-store'});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const d=await r.json();
-    AUTHORIZED_EMAILS=(d.authorized||[]).map(e=>e.toLowerCase());
-    console.log('Auth:',AUTHORIZED_EMAILS.length,'usuarios');
-  }catch(e){
-    AUTHORIZED_EMAILS=AUTHORIZED_EMAILS.map(e=>e.toLowerCase());
-    console.warn('Auth fallback:',e.message);
+  // Intentar hasta 3 veces para asegurar carga fresca
+  for(let attempt=1; attempt<=3; attempt++){
+    try{
+      const r=await fetch(BASE_URL+'/auth.json?nocache='+Date.now()+'&v='+attempt, {
+        cache:'no-store',
+        headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
+      });
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const d=await r.json();
+      AUTHORIZED_EMAILS=(d.authorized||[]).map(e=>e.toLowerCase());
+      console.log('Auth cargado (intento '+attempt+'):',AUTHORIZED_EMAILS.length,'usuarios');
+      return;
+    }catch(e){
+      console.warn('Auth intento '+attempt+' fallido:',e.message);
+      if(attempt===3){
+        AUTHORIZED_EMAILS=AUTHORIZED_EMAILS.map(e=>e.toLowerCase());
+        console.warn('Usando lista embebida como fallback');
+      } else {
+        await new Promise(r=>setTimeout(r,500));
+      }
+    }
   }
 }
 function decodeJWT(t){return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));}
@@ -483,7 +495,34 @@ window.addEventListener('load',async()=>{
 </script>
 
 <script>
-if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/hidroil-stock/sw.js').then(r=>console.log('SW:',r.scope)).catch(e=>console.warn('SW:',e));});}
+if('serviceWorker' in navigator){
+  window.addEventListener('load', async ()=>{
+    try{
+      const reg = await navigator.serviceWorker.register('/hidroil-stock/sw.js');
+      // Forzar actualización inmediata del SW
+      await reg.update();
+      if(reg.waiting){
+        reg.waiting.postMessage({type:'SKIP_WAITING'});
+      }
+      // Si hay nuevo SW instalándose, esperar y recargar
+      reg.addEventListener('updatefound', ()=>{
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', ()=>{
+          if(newSW.state === 'installed' && navigator.serviceWorker.controller){
+            newSW.postMessage({type:'SKIP_WAITING'});
+          }
+        });
+      });
+      console.log('SW registrado y actualizado:', reg.scope);
+    }catch(e){
+      console.warn('SW error:', e);
+    }
+  });
+  // Escuchar cuando el SW nuevo toma control
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    console.log('Nuevo SW activo');
+  });
+}
 </script>
 </body>
 </html>
