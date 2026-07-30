@@ -439,32 +439,30 @@ function doSearch(q){
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const CLIENT_ID='814546968932-dmpjb2qc9vrbgaqgbpf1il8lf0j1gnej.apps.googleusercontent.com';
-let AUTHORIZED_EMAILS=["juan.andreola.833@gmail.com","depositobsas@hidroil.com.ar","aguero.javierariel@gmail.com","javieraguero@hidroil.com.ar","juan.andreola.1987@gmail.com","miguel.montero@hidroil.com.ar","deposito@hidroil.com.ar","cacevedo@hidroil.com.ar","daniel.bustamante@hidroil.com.ar","tberwanger@hidroil.com.ar","mpalla@hidroil.com.ar","depositonqn@hidroil.com.ar","cacevedo.marketing@gmail.com","riosjonathan195@gmail.com","montmiguelangel271@gmail.com","map250593@gmail.com"];
+let AUTHORIZED_EMAILS=[];
 
 async function loadAuthList(){
-  // Intentar hasta 3 veces para asegurar carga fresca
-  for(let attempt=1; attempt<=3; attempt++){
+  // Reintentar hasta 5 veces — SIN fallback a lista embebida
+  for(let i=1; i<=5; i++){
     try{
-      const r=await fetch(BASE_URL+'/auth.json?nocache='+Date.now()+'&v='+attempt, {
-        cache:'no-store',
-        headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
-      });
-      if(!r.ok)throw new Error('HTTP '+r.status);
-      const d=await r.json();
-      AUTHORIZED_EMAILS=(d.authorized||[]).map(e=>e.toLowerCase());
-      console.log('Auth cargado (intento '+attempt+'):',AUTHORIZED_EMAILS.length,'usuarios');
-      return;
+      const r = await fetch(
+        BASE_URL+'/auth.json?t='+Date.now()+'&r='+i,
+        {cache:'no-store', headers:{'Pragma':'no-cache','Cache-Control':'no-cache'}}
+      );
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const d = await r.json();
+      AUTHORIZED_EMAILS = (d.authorized||[]).map(e=>e.toLowerCase().trim());
+      console.log('Auth OK (intento '+i+'):', AUTHORIZED_EMAILS.length, 'usuarios');
+      return true;
     }catch(e){
-      console.warn('Auth intento '+attempt+' fallido:',e.message);
-      if(attempt===3){
-        AUTHORIZED_EMAILS=AUTHORIZED_EMAILS.map(e=>e.toLowerCase());
-        console.warn('Usando lista embebida como fallback');
-      } else {
-        await new Promise(r=>setTimeout(r,500));
-      }
+      console.warn('Auth intento '+i+' fallido:', e.message);
+      if(i < 5) await new Promise(r=>setTimeout(r, 800));
     }
   }
+  console.error('No se pudo cargar auth.json tras 5 intentos');
+  return false;
 }
+
 function decodeJWT(t){return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));}
 function grantAccess(email,name){
   document.getElementById('loginScreen').style.display='none';
