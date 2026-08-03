@@ -1,9 +1,7 @@
-const CACHE = 'hidroil-stock-v5';
+const CACHE = 'hidroil-stock-v6';
 
-// Estos archivos NUNCA se cachean — siempre se leen del servidor
 const NO_CACHE = ['index.html', 'auth.json'];
 
-// Estos se cachean para uso offline
 const CACHE_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
@@ -51,7 +49,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // SheetJS y otros assets — caché first
+  // Resto — caché first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if(cached) return cached;
